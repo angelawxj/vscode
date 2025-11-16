@@ -7,9 +7,7 @@ interface Task {
 }
 
 const App: React.FC = () => {
-    const [activeButton, setActiveButton] = useState<string>('home');
     const [tasks, setTasks] = useState<Task[]>([]);
-    const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [searchLoading, setSearchLoading] = useState<boolean>(false);
     const [page, setPage] = useState<number>(1);
