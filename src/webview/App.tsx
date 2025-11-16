@@ -50,8 +50,8 @@ const App: React.FC = () => {
         // 模拟API调用延迟
         await new Promise(resolve => setTimeout(resolve, 800));
         
-        const newTasks: Task[] = Array.from({ length: 10 }, (_, index) => {
-            const taskId = (pageNum - 1) * 10 + index + 1;
+        const newTasks: Task[] = Array.from({ length: 20 }, (_, index) => {
+            const taskId = (pageNum - 1) * 20 + index + 1;
             const statuses: ('completed' | 'in-progress' | 'timeout')[] = ['completed', 'in-progress', 'timeout'];
             
             return {
@@ -146,28 +146,33 @@ const App: React.FC = () => {
                     icon: '✓',
                     color: '#10b981',
                     text: '已完成',
-                    bgColor: 'rgba(16, 185, 129, 0.1)'
+                    bgColor: 'rgba(16, 185, 129, 0.1)',
+                    rotating: false
                 };
             case 'in-progress':
                 return {
                     icon: '⟳',
-                    color: '#3b82f6',
+                    color: '#f59e0b', // 黄色文字
                     text: '进行中',
-                    bgColor: 'rgba(59, 130, 246, 0.1)'
+                    bgColor: 'rgba(245, 158, 11, 0.1)', // 黄色背景
+                    borderColor: 'rgba(245, 158, 11, 0.2)', // 黄色边框
+                    rotating: true
                 };
             case 'timeout':
                 return {
                     icon: '⚠',
                     color: '#ef4444',
                     text: '超时',
-                    bgColor: 'rgba(239, 68, 68, 0.1)'
+                    bgColor: 'rgba(239, 68, 68, 0.1)',
+                    rotating: false
                 };
             default:
                 return {
                     icon: '?',
                     color: '#6b7280',
                     text: '未知',
-                    bgColor: 'rgba(107, 114, 128, 0.1)'
+                    bgColor: 'rgba(107, 114, 128, 0.1)',
+                    rotating: false
                 };
         }
     };
@@ -256,7 +261,6 @@ const App: React.FC = () => {
                                 </span>
                             </button>
                             <h3>任务列表</h3>
-                            <span className="task-count">({tasks.length} 个任务)</span>
                         </div>
                     </div>
                     
@@ -311,7 +315,7 @@ const App: React.FC = () => {
                                     className="task-item"
                                 >
                                     <div className="task-left">
-                                        <h4 className="task-title">{task.title}</h4>
+                                        <h4 className="task-title" title={task.title}>{task.title}</h4>
                                     </div>
 
                                     <div className="task-right">
@@ -322,7 +326,9 @@ const App: React.FC = () => {
                                                 backgroundColor: statusInfo.bgColor
                                             }}
                                         >
-                                            <span className="status-icon">{statusInfo.icon}</span>
+                                            <span className={`status-icon ${statusInfo.rotating ? 'rotating' : ''}`}>
+                                                {statusInfo.icon}
+                                            </span>
                                             <span className="status-text">{statusInfo.text}</span>
                                         </div>
 
