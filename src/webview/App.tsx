@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+import { SearchIcon,RefreshIcon,ToggleIcon } from './Icon';
 interface Task {
     id: number;
     title: string;
@@ -123,7 +124,7 @@ const App: React.FC = () => {
                 };
             case 'in-progress':
                 return {
-                    icon: '⟳',
+                    icon: <RefreshIcon className="refresh-icon" color="rgb(245, 158, 11)" />,
                     color: '#f59e0b', // 黄色文字
                     text: '进行中',
                     bgColor: 'rgba(245, 158, 11, 0.1)', // 黄色背景
@@ -213,6 +214,7 @@ const App: React.FC = () => {
             <div className="top-section">
                 <div className="dynamic-content">
                     <h2>欢迎</h2>
+                    
                 </div>
             </div>
 
@@ -228,10 +230,10 @@ const App: React.FC = () => {
                                 title={isTaskListCollapsed ? "展开列表" : "折叠列表"}
                             >
                                 <span className={`toggle-icon ${isTaskListCollapsed ? 'collapsed' : ''}`}>
-                                    ▶
+                                    <ToggleIcon />
                                 </span>
                             </button>
-                            <h3>任务列表</h3>
+                            <span className='tasks-title'>任务列表</span>
                         </div>
                     </div>
                     
@@ -252,11 +254,7 @@ const App: React.FC = () => {
                                 className={`search-button ${searchLoading ? 'searching' : ''}`}
                                 disabled={searchLoading}
                             >
-                                {searchLoading ? (
-                                    <div className="search-spinner"></div>
-                                ) : (
-                                    '🔍'
-                                )}
+                                <SearchIcon className="ab" ></SearchIcon>
                             </button>
                         </div>
                     </div>
