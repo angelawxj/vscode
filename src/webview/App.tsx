@@ -10,9 +10,13 @@ const App: React.FC = () => {
     const [activeButton, setActiveButton] = useState<string>('home');
     const [dynamicText, setDynamicText] = useState<string>('欢迎使用代码审查界面！');
     const [tasks, setTasks] = useState<Task[]>([]);
+    const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
+    const [searchLoading, setSearchLoading] = useState<boolean>(false);
     const [page, setPage] = useState<number>(1);
     const [hasMore, setHasMore] = useState<boolean>(true);
+    const [searchTerm, setSearchTerm] = useState<string>('');
+    const [isTaskListCollapsed, setIsTaskListCollapsed] = useState<boolean>(false);
     const taskListRef = useRef<HTMLDivElement>(null);
 
     // 模拟动态文本内容
@@ -36,8 +40,13 @@ const App: React.FC = () => {
     };
 
     // 模拟获取任务数据
-    const fetchTasks = async (pageNum: number) => {
-        setLoading(true);
+    const fetchTasks = async (pageNum: number, search: string = '', isSearch: boolean = false) => {
+        if (isSearch) {
+            setSearchLoading(true);
+        } else {
+            setLoading(true);
+        }
+        
         // 模拟API调用延迟
         await new Promise(resolve => setTimeout(resolve, 800));
         
@@ -47,7 +56,7 @@ const App: React.FC = () => {
             
             return {
                 id: taskId,
-                title: `代码审查任务 ${taskId}`,
+                title: search ? `搜索任务 ${taskId} - ${search}` : `代码审查任务 ${taskId}`,
                 status: statuses[Math.floor(Math.random() * statuses.length)]
             };
         });
@@ -61,12 +70,29 @@ const App: React.FC = () => {
         // 模拟数据结束条件
         setHasMore(pageNum < 5);
         setLoading(false);
+        setSearchLoading(false);
     };
 
     // 初始加载和页面变化时获取数据
     useEffect(() => {
         fetchTasks(1);
     }, []);
+
+    // 处理搜索
+    const handleSearch = () => {
+        if (searchLoading) return;
+        
+        setPage(1);
+        setHasMore(true);
+        fetchTasks(1, searchTerm, true);
+    };
+
+    // 处理回车键搜索
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    };
 
     // 处理按钮点击
     const handleButtonClick = (buttonName: string) => {
@@ -84,29 +110,32 @@ const App: React.FC = () => {
         if (isAtBottom) {
             const nextPage = page + 1;
             setPage(nextPage);
-            fetchTasks(nextPage);
+            fetchTasks(nextPage, searchTerm);
         }
     };
 
     // 删除任务
     const handleDeleteTask = (taskId: number) => {
-        setTasks(prev => prev.filter(task => task.id !== taskId));
+        const updatedTasks = tasks.filter(task => task.id !== taskId);
+        setTasks(updatedTasks);
     };
 
     // 查看结果
     const handleViewResult = (taskId: number) => {
         alert(`查看代码审查任务 ${taskId} 的结果`);
-        // 这里可以添加查看审查结果的逻辑
     };
 
     // 重试任务
     const handleRetryTask = (taskId: number) => {
         alert(`重试代码审查任务 ${taskId}`);
-        // 这里可以添加重试任务的逻辑
-        // 例如：更新任务状态为进行中
         setTasks(prev => prev.map(task => 
             task.id === taskId ? { ...task, status: 'in-progress' } : task
         ));
+    };
+
+    // 切换任务列表折叠状态
+    const toggleTaskListCollapse = () => {
+        setIsTaskListCollapsed(!isTaskListCollapsed);
     };
 
     // 获取状态图标和颜色
@@ -205,8 +234,6 @@ const App: React.FC = () => {
         <div className="app-container">
             {/* 上方动态内容区域 */}
             <div className="top-section">
-
-                {/* 动态文本内容 */}
                 <div className="dynamic-content">
                     <h2>{buttonContents[activeButton as keyof typeof buttonContents].title}</h2>
                     <p>{dynamicText}</p>
@@ -216,68 +243,136 @@ const App: React.FC = () => {
             {/* 下方任务列表区域 */}
             <div className="bottom-section">
                 <div className="tasks-header">
-                    <h3>审查任务列表</h3>
-                    <span className="task-count">
-                        共 {tasks.length} 个任务
-                    </span>
+                    {/* 左侧：标题和折叠按钮 */}
+                    <div className="header-left">
+                        <div className="title-with-toggle">
+                            <button 
+                                className="collapse-toggle"
+                                onClick={toggleTaskListCollapse}
+                                title={isTaskListCollapsed ? "展开列表" : "折叠列表"}
+                            >
+                                <span className={`toggle-icon ${isTaskListCollapsed ? 'collapsed' : ''}`}>
+                                    ▶
+                                </span>
+                            </button>
+                            <h3>任务列表</h3>
+                            <span className="task-count">({tasks.length} 个任务)</span>
+                        </div>
+                    </div>
+                    
+                    {/* 右侧：搜索框 */}
+                    <div className="header-right">
+                        <div className="search-container">
+                            <input
+                                type="text"
+                                placeholder="搜索任务..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onKeyPress={handleKeyPress}
+                                className="search-input"
+                                disabled={searchLoading}
+                            />
+                            <button 
+                                onClick={handleSearch}
+                                className={`search-button ${searchLoading ? 'searching' : ''}`}
+                                disabled={searchLoading}
+                            >
+                                {searchLoading ? (
+                                    <div className="search-spinner"></div>
+                                ) : (
+                                    '🔍'
+                                )}
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 
-                <div 
-                    className="task-list"
-                    ref={taskListRef}
-                    onScroll={handleScroll}
-                >
-                    {tasks.map(task => {
-                        const statusInfo = getStatusInfo(task.status);
-                        
-                        return (
-                            <div 
-                                key={task.id} 
-                                className="task-item"
-                            >
-                                {/* 左侧：标题 */}
-                                <div className="task-left">
-                                    <h4 className="task-title">{task.title}</h4>
-                                </div>
-
-                                {/* 右侧：状态和操作按钮 */}
-                                <div className="task-right">
-                                    {/* 状态显示 */}
-                                    <div 
-                                        className="status-indicator"
-                                        style={{
-                                            color: statusInfo.color,
-                                            backgroundColor: statusInfo.bgColor
-                                        }}
-                                    >
-                                        <span className="status-icon">{statusInfo.icon}</span>
-                                        <span className="status-text">{statusInfo.text}</span>
-                                    </div>
-
-                                    {/* 操作按钮 */}
-                                    <div className="action-buttons">
-                                        {renderActionButtons(task)}
-                                    </div>
-                                </div>
+                {/* 任务列表 - 根据折叠状态显示/隐藏 */}
+                {!isTaskListCollapsed && (
+                    <div 
+                        className="task-list"
+                        ref={taskListRef}
+                        onScroll={handleScroll}
+                    >
+                        {/* 搜索加载状态 */}
+                        {searchLoading && (
+                            <div className="search-loading-indicator">
+                                <div className="search-spinner-large"></div>
+                                <span>搜索中...</span>
                             </div>
-                        );
-                    })}
-                    
-                    {/* 加载状态 */}
-                    {loading && (
-                        <div className="loading-indicator">
-                            <div className="spinner"></div>
-                            <span>加载中...</span>
+                        )}
+                        
+                        {!searchLoading && tasks.map(task => {
+                            const statusInfo = getStatusInfo(task.status);
+                            
+                            return (
+                                <div 
+                                    key={task.id} 
+                                    className="task-item"
+                                >
+                                    <div className="task-left">
+                                        <h4 className="task-title">{task.title}</h4>
+                                    </div>
+
+                                    <div className="task-right">
+                                        <div 
+                                            className="status-indicator"
+                                            style={{
+                                                color: statusInfo.color,
+                                                backgroundColor: statusInfo.bgColor
+                                            }}
+                                        >
+                                            <span className="status-icon">{statusInfo.icon}</span>
+                                            <span className="status-text">{statusInfo.text}</span>
+                                        </div>
+
+                                        <div className="action-buttons">
+                                            {renderActionButtons(task)}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        
+                        {/* 滚动加载状态 */}
+                        {loading && !searchLoading && (
+                            <div className="loading-indicator">
+                                <div className="spinner"></div>
+                                <span>加载更多任务...</span>
+                            </div>
+                        )}
+                        
+                        {/* 无更多数据提示 */}
+                        {!hasMore && tasks.length > 0 && (
+                            <div className="no-more-data">
+                                <span>没有更多任务了</span>
+                            </div>
+                        )}
+                        
+                        {/* 无数据提示 */}
+                        {!searchLoading && tasks.length === 0 && (
+                            <div className="no-data">
+                                <span>暂无任务数据</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* 折叠状态提示 */}
+                {isTaskListCollapsed && (
+                    <div className="collapsed-placeholder">
+                        <div className="placeholder-content">
+                            <span className="placeholder-icon">📋</span>
+                            <span className="placeholder-text">任务列表已折叠</span>
+                            <button 
+                                className="expand-button"
+                                onClick={toggleTaskListCollapse}
+                            >
+                                展开列表
+                            </button>
                         </div>
-                    )}
-                    
-                    {/* 无更多数据提示 */}
-                    {!hasMore && (
-                        <div className="no-more-data">
-                            <span>没有更多任务了</span>
-                        </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         </div>
     );
