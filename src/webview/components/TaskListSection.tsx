@@ -1,5 +1,5 @@
 import React from 'react';
-import { SearchIcon, RefreshIcon, ToggleIcon,TaskIcon } from '../Icon';
+import { SearchIcon, RefreshIcon, ToggleIcon, TaskIcon } from '../Icon';
 
 interface Task {
     id: number;
@@ -14,7 +14,7 @@ interface TaskListSectionProps {
     hasMore: boolean;
     searchTerm: string;
     isTaskListCollapsed: boolean;
-    taskListRef: React.RefObject<HTMLDivElement>;
+    taskListRef: React.RefObject<HTMLDivElement | null>; // 修改这里
     onSearchTermChange: (term: string) => void;
     onSearch: () => void;
     onKeyPress: (e: React.KeyboardEvent) => void;
