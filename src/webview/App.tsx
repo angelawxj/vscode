@@ -8,7 +8,6 @@ interface Task {
 
 const App: React.FC = () => {
     const [activeButton, setActiveButton] = useState<string>('home');
-    const [dynamicText, setDynamicText] = useState<string>('欢迎使用代码审查界面！');
     const [tasks, setTasks] = useState<Task[]>([]);
     const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
@@ -19,25 +18,6 @@ const App: React.FC = () => {
     const [isTaskListCollapsed, setIsTaskListCollapsed] = useState<boolean>(false);
     const taskListRef = useRef<HTMLDivElement>(null);
 
-    // 模拟动态文本内容
-    const buttonContents = {
-        home: {
-            text: '欢迎来到代码审查首页！这里展示最新的审查任务。',
-            title: '首页'
-        },
-        review: {
-            text: '当前有待审查的代码提交，请及时处理。',
-            title: '代码审查'
-        },
-        history: {
-            text: '查看历史审查记录和统计信息。',
-            title: '历史记录'
-        },
-        settings: {
-            text: '系统设置：审查规则配置。',
-            title: '设置'
-        }
-    };
 
     // 模拟获取任务数据
     const fetchTasks = async (pageNum: number, search: string = '', isSearch: boolean = false) => {
@@ -92,12 +72,6 @@ const App: React.FC = () => {
         if (e.key === 'Enter') {
             handleSearch();
         }
-    };
-
-    // 处理按钮点击
-    const handleButtonClick = (buttonName: string) => {
-        setActiveButton(buttonName);
-        setDynamicText(buttonContents[buttonName as keyof typeof buttonContents].text);
     };
 
     // 处理滚动加载
@@ -240,8 +214,7 @@ const App: React.FC = () => {
             {/* 上方动态内容区域 */}
             <div className="top-section">
                 <div className="dynamic-content">
-                    <h2>{buttonContents[activeButton as keyof typeof buttonContents].title}</h2>
-                    <p>{dynamicText}</p>
+                    <h2>欢迎</h2>
                 </div>
             </div>
 
