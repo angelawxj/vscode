@@ -1,0 +1,69 @@
+{
+  "name": "chat-ui",
+  "displayName": "Chat UI",
+  "description": "",
+  "publisher": "chatAI",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:HelloWorld1"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "chat-ui-container",
+          "title": "Chat UI",
+          "icon": "$(comment)"
+        }
+      ]
+    },
+    "views": {
+      "chat-ui-container": [
+        {
+          "id": "HelloWorld1",
+          "name": "Chat UI View",
+          "type": "webview"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.106.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "css-loader": "^7.1.2",
+    "eslint": "^9.39.1",
+    "style-loader": "^4.0.0",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.3",
+    "webpack": "^5.102.1",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  }
+}
