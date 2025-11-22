@@ -52,13 +52,14 @@ const App: React.FC = () => {
       timestamp: new Date()
     };
 
-    // 创建助手消息的初始状态，并显示“正在思考...”
+    // 创建助手消息的初始状态，并显示波浪式加载动画
     const assistantMessageId = (Date.now() + 1).toString();
     const assistantMessage: Message = {
       id: assistantMessageId,
-      content: '正在思考...',
+      content: 'thinking', // 特殊标记，表示正在思考
       role: 'assistant',
-      timestamp: new Date()
+      timestamp: new Date(),
+      isThinking: true // 添加标记表示正在思考状态
     };
 
     // 更新状态，添加用户消息和助手消息
@@ -69,7 +70,7 @@ const App: React.FC = () => {
     }));
 
     try {
-      const apiKey = ""; 
+      const apiKey = "";
       if (!apiKey) throw new Error("API Key is missing");
 
       const payload = {
@@ -79,7 +80,10 @@ const App: React.FC = () => {
             role: msg.role,
             content: msg.content
           })),
-          { role: "user", content }
+          {
+            role: "user",
+            content
+          }
         ],
         stream: true, // Stream response
         max_tokens: 2048
@@ -124,20 +128,21 @@ const App: React.FC = () => {
                 if (dataStr === '[DONE]') {
                   break;
                 }
-
                 try {
                   const parsedData = JSON.parse(dataStr);
                   const token = parsedData.choices?.[0]?.delta?.content || '';
-
                   if (token) {
                     accumulatedContent += token;
-
-                    // 更新助手消息的内容
+                    // 更新助手消息的内容，移除思考状态
                     setChatState(prev => ({
                       ...prev,
                       messages: prev.messages.map(msg =>
                         msg.id === assistantMessageId
-                          ? { ...msg, content: accumulatedContent }
+                          ? {
+                              ...msg,
+                              content: accumulatedContent,
+                              isThinking: false // 移除思考状态
+                            }
                           : msg
                       )
                     }));
@@ -162,12 +167,15 @@ const App: React.FC = () => {
       processStream();
     } catch (error) {
       console.error('Message sending failed:', error);
-
       setChatState(prev => ({
         ...prev,
         messages: prev.messages.map(msg =>
           msg.id === assistantMessageId
-            ? { ...msg, content: 'Sorry, an error occurred. Please try again later.' }
+            ? {
+                ...msg,
+                content: 'Sorry, an error occurred. Please try again later.',
+                isThinking: false // 移除思考状态
+              }
             : msg
         ),
         isLoading: false
@@ -194,7 +202,7 @@ const App: React.FC = () => {
           />
         </div>
         <div className="header-right">
-          <button 
+          <button
             className="clear-btn"
             onClick={clearMessages}
             disabled={chatState.messages.length === 0}
@@ -203,7 +211,6 @@ const App: React.FC = () => {
           </button>
         </div>
       </div>
-      
       <div className="app-content">
         <ChatContainer
           messages={chatState.messages}

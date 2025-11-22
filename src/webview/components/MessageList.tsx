@@ -42,14 +42,22 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading })
               {message.role === 'user' ? '👤' : '🤖'}
             </div>
             <div className="message-content">
-              <div className="message-text">
-                {message.content.split('\n').map((line, index) => (
-                  <React.Fragment key={index}>
-                    {line}
-                    {index < message.content.split('\n').length - 1 && <br />}
-                  </React.Fragment>
-                ))}
-              </div>
+                  {message.isThinking ? (
+                <div className="thinking-dots">
+                  <span>.</span>
+                  <span>.</span>
+                  <span>.</span>
+                </div>
+              ) : (
+                <div className="message-text">
+                  {message.content.split('\n').map((line, index) => (
+                    <React.Fragment key={index}>
+                      {line}
+                      {index < message.content.split('\n').length - 1 && <br />}
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
               <div className="message-time">
                 {formatTime(message.timestamp)}
               </div>
