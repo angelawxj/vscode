@@ -35,10 +35,10 @@ const App: React.FC = () => {
     const assistantMessageId = (Date.now() + 1).toString();
     const assistantMessage: Message = {
       id: assistantMessageId,
-      content: 'thinking', // 特殊标记，表示正在思考 hf_JuHheWuHykKiBBkCE
+      content: 'thinking', // 特殊标记，表示正在思考 
       role: 'assistant',
       timestamp: new Date(),
-      isThinking: true, // 添加标记表示正在思考状态 nctthaUIONKhYpgrA
+      isThinking: true, // 添加标记表示正在思考状态 
     };
 
     setChatState(prev => ({
@@ -48,11 +48,11 @@ const App: React.FC = () => {
     }));
 
     try {
-      const apiKey = "";
-      if (!apiKey) throw new Error("API Key is missing");
+      const apiKey = ""; 
+      if (!apiKey) throw new Error("API Key is missing");//hf_JuHheWuHykKiBBkCEnct
 
       const payload = {
-        model: chatState.currentModel.id,
+        model: chatState.currentModel.id,//thaUIONKhYpgrA
         messages: [
           ...chatState.messages.map(msg => ({ role: msg.role, content: msg.content })),
           { role: "user", content }
@@ -142,8 +142,8 @@ const App: React.FC = () => {
 
 const handleWriteToGitHub = useCallback(async (content: string) => {
   const token = ''; // 替换为你的GitHub Token
-  const repoOwner = 'angelawxj'; // 替换为你的GitHub仓库所有者 ghp_qEBZSUFfADi9
-  const repoName = 'vscode'; // 替换为你的GitHub仓库名称 tZz9yHpZNMTZ3Mn8Ni1sI50V
+  const repoOwner = 'angelawxj'; // 替换为你的GitHub仓库所有者ghp_qEBZSUFfADi9
+  const repoName = 'vscode'; // 替换为你的GitHub仓库名称tZz9yHpZNMTZ3Mn8Ni1sI50V
   const filePath = 'write.txt'; // 文件路径
   const branch = 'dev'; // 分支名称
 
@@ -164,12 +164,12 @@ const handleWriteToGitHub = useCallback(async (content: string) => {
     const fileData = await response.json();
     const sha = fileData.sha; // 需要的SHA值
     const existingContentBase64 = fileData.content; // 文件内容（Base64 编码）
-    
-    // 2. 解码现有内容
-    const existingContent = atob(existingContentBase64); // 解码Base64为字符串
+
+    // 2. 解码现有内容（使用 TextDecoder）
+    const decodedExistingContent = decodeBase64(existingContentBase64);
 
     // 3. 将新内容追加到现有内容之后
-    const updatedContent = existingContent + '\n' + content; // 将内容按需拼接
+    const updatedContent = decodedExistingContent + '\n' + content;
 
     // 4. 将更新后的内容重新编码为Base64
     const encodedContent = encodeBase64(updatedContent);
@@ -200,6 +200,22 @@ const handleWriteToGitHub = useCallback(async (content: string) => {
   }
 }, [chatState.messages]);
 
+// 解码Base64（使用 TextDecoder）
+const decodeBase64 = (base64: string): string => {
+  const byteArray = new Uint8Array(atob(base64).split('').map(c => c.charCodeAt(0)));
+  const decoder = new TextDecoder('utf-8');
+  return decoder.decode(byteArray);
+};
+
+// 编码为Base64
+const encodeBase64 = (str: string): string => {
+  const encoder = new TextEncoder();
+  const uint8Array = encoder.encode(str);
+  return btoa(String.fromCharCode(...uint8Array));
+};
+
+
+
   const clearMessages = useCallback(() => {
     setChatState(prev => ({ ...prev, messages: [] }));
   }, []);
@@ -208,11 +224,7 @@ const handleWriteToGitHub = useCallback(async (content: string) => {
     setIsWritingMode(prev => !prev); // 切换写作模式
   };
 
-  const encodeBase64 = (str: string) => {
-    const encoder = new TextEncoder();
-    const uint8Array = encoder.encode(str);
-    return btoa(String.fromCharCode(...uint8Array));
-  };
+
 
   return (
     <div className="ai-chat-app">
