@@ -28,7 +28,7 @@
   font-weight: 600;
 }
 
-.clear-btn {
+.clear-btn, .write-btn {
   background: #444;
   border: 1px solid #555;
   color: #fff;
@@ -463,4 +463,13 @@
 
 .message.user .message-timestamp {
   color: rgba(255, 255, 255, 0.8);
+}
+
+.write-btn.active {
+  background-color: #3794ff; /* 选中时的蓝色背景 */
+  color: white;
+  border: none;
+}
+.header-right{
+  gap:10px;
 }
