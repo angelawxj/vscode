@@ -1,141 +1,219 @@
-import React, { useState, useEffect, useRef } from 'react';
-import TopSection from './components/TopSection';
-import TaskListSection from './components/TaskListSection';
-
-interface Task {
-    id: number;
-    title: string;
-    status: 'completed' | 'in-progress' | 'timeout';
-}
+import React, { useState, useCallback } from 'react';
+import { ChatContainer } from './components/ChatContainer';
+import { ModelSelector } from './components/ModelSelector';
+import { Message, Model, ChatState } from './types';
+import './styles/App.css';
 
 const App: React.FC = () => {
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [loading, setLoading] = useState<boolean>(false);
-    const [searchLoading, setSearchLoading] = useState<boolean>(false);
-    const [page, setPage] = useState<number>(1);
-    const [hasMore, setHasMore] = useState<boolean>(true);
-    const [searchTerm, setSearchTerm] = useState<string>('');
-    const [isTaskListCollapsed, setIsTaskListCollapsed] = useState<boolean>(false);
-    const taskListRef = useRef<HTMLDivElement>(null);
+  const [chatState, setChatState] = useState<ChatState>({
+    messages: [],
+    currentModel: {
+      id: 'deepseek-ai/DeepSeek-V3-0324',
+      name: 'DeepSeek V3',
+      provider: 'Hugging Face',
+      description: 'DeepSeek 最新模型'
+    },
+    isLoading: false
+  });
 
-    // 模拟获取任务数据
-    const fetchTasks = async (pageNum: number, search: string = '', isSearch: boolean = false) => {
-        if (isSearch) {
-            setSearchLoading(true);
-        } else {
-            setLoading(true);
+  const availableModels: Model[] = [
+    {
+      id: 'deepseek-ai/DeepSeek-V3-0324',
+      name: 'DeepSeek V3',
+      provider: 'Hugging Face',
+      description: 'DeepSeek 最新模型'
+    },
+    {
+      id: 'meta-llama/Meta-Llama-3-70B-Instruct',
+      name: 'Llama 3 70B',
+      provider: 'Hugging Face',
+      description: 'Meta Llama 3 70B 模型'
+    },
+    {
+      id: 'mistralai/Mistral-7B-Instruct-v0.3',
+      name: 'Mistral 7B',
+      provider: 'Hugging Face',
+      description: 'Mistral 7B 指令调优模型'
+    }
+  ];
+
+  const handleModelChange = useCallback((model: Model) => {
+    setChatState(prev => ({
+      ...prev,
+      currentModel: model
+    }));
+  }, []);
+
+  const handleSendMessage = useCallback(async (content: string) => {
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content,
+      role: 'user',
+      timestamp: new Date()
+    };
+
+    // 创建助手消息的初始状态，并显示“正在思考...”
+    const assistantMessageId = (Date.now() + 1).toString();
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      content: '正在思考...',
+      role: 'assistant',
+      timestamp: new Date()
+    };
+
+    // 更新状态，添加用户消息和助手消息
+    setChatState(prev => ({
+      ...prev,
+      messages: [...prev.messages, userMessage, assistantMessage],
+      isLoading: true
+    }));
+
+    try {
+      const apiKey = ""; 
+      if (!apiKey) throw new Error("API Key is missing");
+
+      const payload = {
+        model: chatState.currentModel.id,
+        messages: [
+          ...chatState.messages.map(msg => ({
+            role: msg.role,
+            content: msg.content
+          })),
+          { role: "user", content }
+        ],
+        stream: true, // Stream response
+        max_tokens: 2048
+      };
+
+      const response = await fetch(
+        "https://router.huggingface.co/v1/chat/completions",
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
         }
-        
-        // 模拟API调用延迟
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        const newTasks: Task[] = Array.from({ length: 20 }, (_, index) => {
-            const taskId = (pageNum - 1) * 20 + index + 1;
-            const statuses: ('completed' | 'in-progress' | 'timeout')[] = ['completed', 'in-progress', 'timeout'];
-            
-            return {
-                id: taskId,
-                title: search ? `搜索任务 ${taskId} - ${search}` : `代码审查任务 ${taskId}`,
-                status: statuses[Math.floor(Math.random() * statuses.length)]
-            };
-        });
+      );
 
-        if (pageNum === 1) {
-            setTasks(newTasks);
-        } else {
-            setTasks(prev => [...prev, ...newTasks]);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedContent = '';
+
+      const processStream = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const dataStr = line.slice(6);
+                if (dataStr === '[DONE]') {
+                  break;
+                }
+
+                try {
+                  const parsedData = JSON.parse(dataStr);
+                  const token = parsedData.choices?.[0]?.delta?.content || '';
+
+                  if (token) {
+                    accumulatedContent += token;
+
+                    // 更新助手消息的内容
+                    setChatState(prev => ({
+                      ...prev,
+                      messages: prev.messages.map(msg =>
+                        msg.id === assistantMessageId
+                          ? { ...msg, content: accumulatedContent }
+                          : msg
+                      )
+                    }));
+                  }
+                } catch (e) {
+                  console.warn('Error parsing data block:', e, 'Raw data:', dataStr);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error handling stream:', error);
+        } finally {
+          setChatState(prev => ({
+            ...prev,
+            isLoading: false
+          }));
+          reader.releaseLock();
         }
+      };
 
-        // 模拟数据结束条件
-        setHasMore(pageNum < 5);
-        setLoading(false);
-        setSearchLoading(false);
-    };
+      processStream();
+    } catch (error) {
+      console.error('Message sending failed:', error);
 
-    // 初始加载和页面变化时获取数据
-    useEffect(() => {
-        fetchTasks(1);
-    }, []);
+      setChatState(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg.id === assistantMessageId
+            ? { ...msg, content: 'Sorry, an error occurred. Please try again later.' }
+            : msg
+        ),
+        isLoading: false
+      }));
+    }
+  }, [chatState.messages, chatState.currentModel.id]);
 
-    // 处理搜索
-    const handleSearch = () => {
-        if (searchLoading) return;
-        
-        setPage(1);
-        setHasMore(true);
-        fetchTasks(1, searchTerm, true);
-    };
+  const clearMessages = useCallback(() => {
+    setChatState(prev => ({
+      ...prev,
+      messages: []
+    }));
+  }, []);
 
-    // 处理回车键搜索
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            handleSearch();
-        }
-    };
-
-    // 处理滚动加载
-    const handleScroll = () => {
-        if (!taskListRef.current || loading || !hasMore) return;
-
-        const { scrollTop, scrollHeight, clientHeight } = taskListRef.current;
-        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
-
-        if (isAtBottom) {
-            const nextPage = page + 1;
-            setPage(nextPage);
-            fetchTasks(nextPage, searchTerm);
-        }
-    };
-
-    // 删除任务
-    const handleDeleteTask = (taskId: number) => {
-        const updatedTasks = tasks.filter(task => task.id !== taskId);
-        setTasks(updatedTasks);
-    };
-
-    // 查看结果
-    const handleViewResult = (taskId: number) => {
-        alert(`查看代码审查任务 ${taskId} 的结果`);
-    };
-
-    // 重试任务
-    const handleRetryTask = (taskId: number) => {
-        alert(`重试代码审查任务 ${taskId}`);
-        setTasks(prev => prev.map(task => 
-            task.id === taskId ? { ...task, status: 'in-progress' } : task
-        ));
-    };
-
-    // 切换任务列表折叠状态
-    const toggleTaskListCollapse = () => {
-        setIsTaskListCollapsed(!isTaskListCollapsed);
-    };
-
-    return (
-        <div className="app-container">
-            {/* 上方动态内容区域 */}
-            <TopSection />
-            
-            {/* 下方任务列表区域 */}
-            <TaskListSection
-                tasks={tasks}
-                loading={loading}
-                searchLoading={searchLoading}
-                hasMore={hasMore}
-                searchTerm={searchTerm}
-                isTaskListCollapsed={isTaskListCollapsed}
-                taskListRef={taskListRef}
-                onSearchTermChange={setSearchTerm}
-                onSearch={handleSearch}
-                onKeyPress={handleKeyPress}
-                onScroll={handleScroll}
-                onDeleteTask={handleDeleteTask}
-                onViewResult={handleViewResult}
-                onRetryTask={handleRetryTask}
-                onToggleCollapse={toggleTaskListCollapse}
-            />
+  return (
+    <div className="ai-chat-app">
+      <div className="app-header">
+        <div className="header-left">
+          <h1>AI助手</h1>
+          <ModelSelector
+            models={availableModels}
+            currentModel={chatState.currentModel}
+            onModelChange={handleModelChange}
+          />
         </div>
-    );
+        <div className="header-right">
+          <button 
+            className="clear-btn"
+            onClick={clearMessages}
+            disabled={chatState.messages.length === 0}
+          >
+            清空对话
+          </button>
+        </div>
+      </div>
+      
+      <div className="app-content">
+        <ChatContainer
+          messages={chatState.messages}
+          onSendMessage={handleSendMessage}
+          isLoading={chatState.isLoading}
+          currentModel={chatState.currentModel}
+        />
+      </div>
+    </div>
+  );
 };
 
 export default App;
