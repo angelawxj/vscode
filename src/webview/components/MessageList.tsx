@@ -1,5 +1,8 @@
 import React, { useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown'; // Import react-markdown
 import { Message } from '../types';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; // Import syntax highlighter
+import { tomorrownight } from 'react-syntax-highlighter/dist/esm/styles/prism'; // Choose a style
 
 interface MessageListProps {
   messages: Message[];
@@ -42,7 +45,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading })
               {message.role === 'user' ? '👤' : '🤖'}
             </div>
             <div className="message-content">
-                  {message.isThinking ? (
+              {message.isThinking ? (
                 <div className="thinking-dots">
                   <span>.</span>
                   <span>.</span>
@@ -50,12 +53,28 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading })
                 </div>
               ) : (
                 <div className="message-text">
-                  {message.content.split('\n').map((line, index) => (
-                    <React.Fragment key={index}>
-                      {line}
-                      {index < message.content.split('\n').length - 1 && <br />}
-                    </React.Fragment>
-                  ))}
+                  <ReactMarkdown
+                    children={message.content}
+                    components={{
+                      code({ node, inline, className, children, ...props }: any) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        return !inline && match ? (
+                          <SyntaxHighlighter
+                            style={tomorrownight} // Choose your preferred style
+                            language={match[1]}
+                            PreTag="div"
+                            {...props}
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        ) : (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        );
+                      }
+                    }}
+                  />
                 </div>
               )}
               <div className="message-time">
