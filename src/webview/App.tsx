@@ -56,10 +56,10 @@ const App: React.FC = () => {
     const assistantMessageId = (Date.now() + 1).toString();
     const assistantMessage: Message = {
       id: assistantMessageId,
-      content: 'thinking', // 特殊标记，表示正在思考
+      content: 'thinking', // 特殊标记，表示正在思考 hf_JuHheWuHykKi
       role: 'assistant',
       timestamp: new Date(),
-      isThinking: true // 添加标记表示正在思考状态
+      isThinking: true // 添加标记表示正在思考状态 BBkCEnctthaUIONKhYpgrA
     };
 
     // 更新状态，添加用户消息和助手消息

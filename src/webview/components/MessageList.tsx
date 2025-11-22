@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown'; // Import react-markdown
 import { Message } from '../types';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; // Import syntax highlighter
-import { tomorrownight } from 'react-syntax-highlighter/dist/esm/styles/prism'; // Choose a style
+import { nightOwl  } from 'react-syntax-highlighter/dist/esm/styles/prism'; // Choose a style
 
 interface MessageListProps {
   messages: Message[];
@@ -60,7 +60,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading })
                         const match = /language-(\w+)/.exec(className || '');
                         return !inline && match ? (
                           <SyntaxHighlighter
-                            style={tomorrownight} // Choose your preferred style
+                            style={nightOwl} // Choose your preferred style
                             language={match[1]}
                             PreTag="div"
                             {...props}
