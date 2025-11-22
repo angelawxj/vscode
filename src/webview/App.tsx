@@ -1,8 +1,19 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { ChatContainer } from './components/ChatContainer';
 import { ModelSelector } from './components/ModelSelector';
 import { Message, Model, ChatState } from './types';
 import './styles/App.css';
+
+// 定义 VSCode API 类型
+declare global {
+  interface Window {
+    acquireVsCodeApi?: () => {
+      postMessage: (message: any) => void;
+      setState: (state: any) => void;
+      getState: () => any;
+    };
+  }
+}
 
 const App: React.FC = () => {
   const [chatState, setChatState] = useState<ChatState>({
@@ -11,7 +22,9 @@ const App: React.FC = () => {
     isLoading: false,
   });
 
-  const [isWritingMode, setIsWritingMode] = useState<boolean>(false); // 控制写作模式
+  const [isWritingMode, setIsWritingMode] = useState<boolean>(false);
+  const [apiKeys, setApiKeys] = useState<{huggingface?: string, github?: string}>({});
+  const [isLoadingKeys, setIsLoadingKeys] = useState<boolean>(true);
 
   const availableModels: Model[] = [
     { id: 'deepseek-ai/DeepSeek-V3-0324', name: 'DeepSeek V3', provider: 'Hugging Face', description: 'DeepSeek 最新模型' },
@@ -19,11 +32,68 @@ const App: React.FC = () => {
     { id: 'mistralai/Mistral-7B-Instruct-v0.3', name: 'Mistral 7B', provider: 'Hugging Face', description: 'Mistral 7B 指令调优模型' }
   ];
 
+  // 从 VSCode Secret Storage 获取 API Keys
+  useEffect(() => {
+    const loadApiKeys = () => {
+      if (window.acquireVsCodeApi) {
+        const vscode = window.acquireVsCodeApi();
+        vscode.postMessage({
+          command: 'getSecrets',
+          keys: ['huggingface', 'github']
+        });
+
+        // 监听来自扩展的消息
+        const messageHandler = (event: MessageEvent) => {
+          const message = event.data;
+          if (message.command === 'secretsData') {
+            setApiKeys(message.secrets);
+            setIsLoadingKeys(false);
+          }
+        };
+
+        window.addEventListener('message', messageHandler);
+        return () => window.removeEventListener('message', messageHandler);
+      } else {
+        // 非 VSCode 环境，从环境变量读取
+        setApiKeys({
+          huggingface: process.env.REACT_APP_HUGGINGFACE_TOKEN,
+          github: process.env.REACT_APP_GITHUB_TOKEN
+        });
+        setIsLoadingKeys(false);
+      }
+    };
+
+    loadApiKeys();
+  }, []);
+
+  // 保存 API Key 到 Secret Storage
+  const saveApiKey = useCallback((keyName: 'huggingface' | 'github', value: string) => {
+    if (window.acquireVsCodeApi) {
+      const vscode = window.acquireVsCodeApi();
+      vscode.postMessage({
+        command: 'setSecret',
+        key: keyName,
+        value: value
+      });
+      
+      // 更新本地状态
+      setApiKeys(prev => ({ ...prev, [keyName]: value }));
+    } else {
+      // 非 VSCode 环境，直接更新状态
+      setApiKeys(prev => ({ ...prev, [keyName]: value }));
+    }
+  }, []);
+
   const handleModelChange = useCallback((model: Model) => {
     setChatState(prev => ({ ...prev, currentModel: model }));
   }, []);
 
   const handleSendMessage = useCallback(async (content: string) => {
+    if (isLoadingKeys) {
+      console.error('API keys are still loading');
+      return;
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       content,
@@ -31,14 +101,13 @@ const App: React.FC = () => {
       timestamp: new Date(),
     };
 
-    // 创建助手消息的初始状态，并显示波浪式加载动画
     const assistantMessageId = (Date.now() + 1).toString();
     const assistantMessage: Message = {
       id: assistantMessageId,
-      content: 'thinking', // 特殊标记，表示正在思考 
+      content: 'thinking',
       role: 'assistant',
       timestamp: new Date(),
-      isThinking: true, // 添加标记表示正在思考状态 
+      isThinking: true,
     };
 
     setChatState(prev => ({
@@ -48,16 +117,18 @@ const App: React.FC = () => {
     }));
 
     try {
-      const apiKey = ""; 
-      if (!apiKey) throw new Error("API Key is missing");//hf_JuHheWuHykKiBBkCEnct
+      const apiKey = apiKeys.huggingface;
+      if (!apiKey) {
+        throw new Error("Hugging Face API Key is missing. Please configure it in settings.");
+      }
 
       const payload = {
-        model: chatState.currentModel.id,//thaUIONKhYpgrA
+        model: chatState.currentModel.id,
         messages: [
           ...chatState.messages.map(msg => ({ role: msg.role, content: msg.content })),
           { role: "user", content }
         ],
-        stream: true, // Stream response
+        stream: true,
         max_tokens: 2048
       };
 
@@ -133,98 +204,160 @@ const App: React.FC = () => {
       setChatState(prev => ({
         ...prev,
         messages: prev.messages.map(msg =>
-          msg.id === assistantMessageId ? { ...msg, content: 'Sorry, an error occurred. Please try again later.', isThinking: false } : msg
+          msg.id === assistantMessageId ? { 
+            ...msg, 
+            content: error instanceof Error ? error.message : 'Sorry, an error occurred. Please try again later.', 
+            isThinking: false 
+          } : msg
         ),
         isLoading: false
       }));
     }
-  }, [chatState.messages, chatState.currentModel.id]);
+  }, [chatState.messages, chatState.currentModel.id, apiKeys.huggingface, isLoadingKeys]);
 
-const handleWriteToGitHub = useCallback(async (content: string) => {
-  const token = ''; // 替换为你的GitHub Token
-  const repoOwner = 'angelawxj'; // 替换为你的GitHub仓库所有者ghp_qEBZSUFfADi9
-  const repoName = 'vscode'; // 替换为你的GitHub仓库名称tZz9yHpZNMTZ3Mn8Ni1sI50V
-  const filePath = 'write.txt'; // 文件路径
-  const branch = 'dev'; // 分支名称
+  const handleWriteToGitHub = useCallback(async (content: string) => {
+    if (isLoadingKeys) {
+      console.error('API keys are still loading');
+      return;
+    }
 
-  try {
-    // 1. 获取文件的现有内容
-    const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}?ref=${branch}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
+    const token = apiKeys.github;
+    const repoOwner = 'angelawxj';
+    const repoName = 'vscode';
+    const filePath = 'write.txt';
+    const branch = 'dev';
+
+    if (!token) {
+      console.error('GitHub Token is missing. Please configure it in settings.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}?ref=${branch}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.status}`);
       }
-    });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch file: ${response.status}`);
+      const fileData = await response.json();
+      const sha = fileData.sha;
+      const existingContentBase64 = fileData.content;
+
+      const decodedExistingContent = decodeBase64(existingContentBase64);
+      const updatedContent = decodedExistingContent + '\n' + content;
+      const encodedContent = encodeBase64(updatedContent);
+
+      const updateResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+        body: JSON.stringify({
+          message: 'Append new content to document',
+          content: encodedContent,
+          sha: sha,
+          branch: branch,
+        })
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error(`GitHub update failed: ${updateResponse.status}`);
+      }
+
+      console.log('GitHub文档更新成功!');
+    } catch (error) {
+      console.error('Error updating GitHub document:', error);
     }
+  }, [apiKeys.github, isLoadingKeys]);
 
-    const fileData = await response.json();
-    const sha = fileData.sha; // 需要的SHA值
-    const existingContentBase64 = fileData.content; // 文件内容（Base64 编码）
+  const decodeBase64 = (base64: string): string => {
+    const byteArray = new Uint8Array(atob(base64).split('').map(c => c.charCodeAt(0)));
+    const decoder = new TextDecoder('utf-8');
+    return decoder.decode(byteArray);
+  };
 
-    // 2. 解码现有内容（使用 TextDecoder）
-    const decodedExistingContent = decodeBase64(existingContentBase64);
-
-    // 3. 将新内容追加到现有内容之后
-    const updatedContent = decodedExistingContent + '\n' + content;
-
-    // 4. 将更新后的内容重新编码为Base64
-    const encodedContent = encodeBase64(updatedContent);
-
-    // 5. 更新文件内容
-    const updateResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
-      body: JSON.stringify({
-        message: 'Append new content to document',
-        content: encodedContent, // 重新编码后的内容
-        sha: sha, // 提供文件的SHA值
-        branch: branch,
-      })
-    });
-
-    if (!updateResponse.ok) {
-      throw new Error(`GitHub update failed: ${updateResponse.status}`);
-    }
-
-    console.log('GitHub文档更新成功!');
-  } catch (error) {
-    console.error('Error updating GitHub document:', error);
-    console.log('更新失败');
-  }
-}, [chatState.messages]);
-
-// 解码Base64（使用 TextDecoder）
-const decodeBase64 = (base64: string): string => {
-  const byteArray = new Uint8Array(atob(base64).split('').map(c => c.charCodeAt(0)));
-  const decoder = new TextDecoder('utf-8');
-  return decoder.decode(byteArray);
-};
-
-// 编码为Base64
-const encodeBase64 = (str: string): string => {
-  const encoder = new TextEncoder();
-  const uint8Array = encoder.encode(str);
-  return btoa(String.fromCharCode(...uint8Array));
-};
-
-
+  const encodeBase64 = (str: string): string => {
+    const encoder = new TextEncoder();
+    const uint8Array = encoder.encode(str);
+    return btoa(String.fromCharCode(...uint8Array));
+  };
 
   const clearMessages = useCallback(() => {
     setChatState(prev => ({ ...prev, messages: [] }));
   }, []);
 
   const handleToggleWritingMode = () => {
-    setIsWritingMode(prev => !prev); // 切换写作模式
+    setIsWritingMode(prev => !prev);
   };
 
+  // 设置 API Key 的组件
+  const ApiKeySettings: React.FC = () => {
+    const [showSettings, setShowSettings] = useState(false);
+    const [tempKeys, setTempKeys] = useState(apiKeys);
 
+    useEffect(() => {
+      setTempKeys(apiKeys);
+    }, [apiKeys]);
+
+    const handleSave = () => {
+      if (tempKeys.huggingface) {
+        saveApiKey('huggingface', tempKeys.huggingface);
+      }
+      if (tempKeys.github) {
+        saveApiKey('github', tempKeys.github);
+      }
+      setShowSettings(false);
+    };
+
+    return (
+      <div className="api-key-settings">
+        <button 
+          className="settings-btn"
+          onClick={() => setShowSettings(!showSettings)}
+        >
+          ⚙️ 设置
+        </button>
+        
+        {showSettings && (
+          <div className="settings-panel">
+            <h3>API 密钥设置</h3>
+            
+            <div className="input-group">
+              <label>Hugging Face Token:</label>
+              <input
+                type="password"
+                value={tempKeys.huggingface || ''}
+                onChange={(e) => setTempKeys(prev => ({ ...prev, huggingface: e.target.value }))}
+                placeholder="输入 Hugging Face Token"
+              />
+            </div>
+            
+            <div className="input-group">
+              <label>GitHub Token:</label>
+              <input
+                type="password"
+                value={tempKeys.github || ''}
+                onChange={(e) => setTempKeys(prev => ({ ...prev, github: e.target.value }))}
+                placeholder="输入 GitHub Token"
+              />
+            </div>
+            
+            <div className="settings-actions">
+              <button onClick={handleSave}>保存</button>
+              <button onClick={() => setShowSettings(false)}>取消</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="ai-chat-app">
@@ -234,19 +367,27 @@ const encodeBase64 = (str: string): string => {
           <ModelSelector models={availableModels} currentModel={chatState.currentModel} onModelChange={handleModelChange} />
         </div>
         <div className="header-right">
+          <ApiKeySettings />
           <button
-            className={`write-btn ${isWritingMode ? 'active' : ''}`} // 动态添加 active 类
+            className={`write-btn ${isWritingMode ? 'active' : ''}`}
             onClick={handleToggleWritingMode}
           >
             写作
           </button>
-          <button className="clear-btn" onClick={clearMessages} disabled={chatState.messages.length === 0}>清空</button>
+          <button className="clear-btn" onClick={clearMessages} disabled={chatState.messages.length === 0}>
+            清空
+          </button>
         </div>
       </div>
+      
+      {isLoadingKeys && (
+        <div className="loading-keys">正在加载 API 密钥...</div>
+      )}
+      
       <div className="app-content">
         <ChatContainer
           messages={chatState.messages}
-          onSendMessage={isWritingMode ? handleWriteToGitHub : handleSendMessage} // 根据状态切换方法
+          onSendMessage={isWritingMode ? handleWriteToGitHub : handleSendMessage}
           isLoading={chatState.isLoading}
           currentModel={chatState.currentModel}
         />

@@ -1,22 +1,27 @@
 {
   "name": "chat-ui",
   "displayName": "Chat UI",
-  "description": "",
+  "description": "AI聊天助手，支持多种模型和GitHub集成",
   "publisher": "chatAI",
   "repository": {
     "type": "git",
     "url": "https://github.com/angelawxj/vscode"
   },
-  "version": "0.0.3",
+  "version": "0.0.4",
   "engines": {
     "vscode": "^1.106.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Machine Learning",
+    "AI"
   ],
   "icon": "resources/icon.png",
   "activationEvents": [
-    "onView:HelloWorld1"
+    "onView:aiChatView",
+    "onCommand:ai-chat.setHuggingFaceToken",
+    "onCommand:ai-chat.setGitHubToken",
+    "onCommand:ai-chat.showChat"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -24,19 +29,134 @@
       "activitybar": [
         {
           "id": "chat-ui-container",
-          "title": "Chat UI",
-          "icon": "$(comment)"
+          "title": "AI Chat",
+          "icon": "$(comment-discussion)"
         }
       ]
     },
     "views": {
       "chat-ui-container": [
         {
-          "id": "HelloWorld1",
-          "name": "Chat UI View",
+          "id": "aiChatView",
+          "name": "AI 助手",
           "type": "webview"
         }
       ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "aiChatView",
+        "contents": "欢迎使用 AI 助手！\n[一键设置所有 API 密钥](command:ai-chat.setupAllTokens)\n[开始聊天](command:ai-chat.showChat)\n\n需要先设置 API 密钥才能使用完整功能：\n- [设置 Hugging Face Token](command:ai-chat.setHuggingFaceToken)\n- [设置 GitHub Token](command:ai-chat.setGitHubToken)\n- [查看密钥状态](command:ai-chat.showTokenStatus)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "ai-chat.setHuggingFaceToken",
+        "title": "设置 Hugging Face Token",
+        "category": "AI Chat"
+      },
+      {
+        "command": "ai-chat.setGitHubToken",
+        "title": "设置 GitHub Token",
+        "category": "AI Chat"
+      },
+      {
+        "command": "ai-chat.clearTokens",
+        "title": "清除所有 API 密钥",
+        "category": "AI Chat"
+      },
+      {
+        "command": "ai-chat.showChat",
+        "title": "打开 AI 聊天界面",
+        "category": "AI Chat"
+      },
+      {
+        "command": "ai-chat.showTokenStatus",
+        "title": "显示 API 密钥状态",
+        "category": "AI Chat"
+      },
+      {
+        "command": "ai-chat.setupAllTokens",
+        "title": "一键设置所有 API 密钥",
+        "category": "AI Chat"
+      }
+    ],
+    "menus": {
+      "command-palette": [
+        {
+          "command": "ai-chat.setHuggingFaceToken",
+          "when": "true"
+        },
+        {
+          "command": "ai-chat.setGitHubToken",
+          "when": "true"
+        },
+        {
+          "command": "ai-chat.clearTokens",
+          "when": "true"
+        },
+        {
+          "command": "ai-chat.showChat",
+          "when": "true"
+        },
+        {
+          "command": "ai-chat.showTokenStatus",
+          "when": "true"
+        },
+        {
+          "command": "ai-chat.setupAllTokens",
+          "when": "true"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "ai-chat.showChat",
+          "when": "view == aiChatView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "ai-chat.setHuggingFaceToken",
+          "when": "view == aiChatView",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "AI Chat",
+      "properties": {
+        "aiChat.defaultModel": {
+          "type": "string",
+          "default": "deepseek-ai/DeepSeek-V3-0324",
+          "description": "默认使用的 AI 模型"
+        },
+        "aiChat.maxTokens": {
+          "type": "number",
+          "default": 2048,
+          "description": "每次请求的最大 token 数量"
+        },
+        "aiChat.enableStreaming": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否启用流式响应"
+        },
+        "aiChat.githubRepoOwner": {
+          "type": "string",
+          "default": "angelawxj",
+          "description": "GitHub 仓库所有者"
+        },
+        "aiChat.githubRepoName": {
+          "type": "string",
+          "default": "vscode",
+          "description": "GitHub 仓库名称"
+        },
+        "aiChat.githubBranch": {
+          "type": "string",
+          "default": "dev",
+          "description": "GitHub 分支名称"
+        }
+      }
     }
   },
   "scripts": {
@@ -47,13 +167,15 @@
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vscode-test",
+    "build:webview": "webpack --config webpack.webview.config.js",
+    "build:all": "npm run compile && npm run build:webview"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "@types/vscode": "^1.106.0",
+    "@types/vscode": "^1.106.1",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
     "css-loader": "^7.1.2",
@@ -63,7 +185,8 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.3",
     "webpack": "^5.102.1",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^6.0.1",
+    "html-webpack-plugin": "^5.6.3"
   },
   "dependencies": {
     "@types/react": "^19.2.5",

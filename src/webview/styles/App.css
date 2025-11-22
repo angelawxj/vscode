@@ -28,12 +28,12 @@
   font-weight: 600;
 }
 
-.clear-btn, .write-btn {
+.clear-btn, .write-btn,.settings-btn {
   background: #444;
   border: 1px solid #555;
   color: #fff;
-  padding: 8px 16px;
-  border-radius: 6px;
+ padding: 3px 12px;
+    border-radius: 3px;
   cursor: pointer;
   font-size: 14px;
 }
@@ -294,8 +294,8 @@
   gap: 8px;
   background: #444;
   border: 1px solid #555;
-  border-radius: 6px;
-  padding: 8px 12px;
+  border-radius: 4px;
+  padding: 3px 12px;
   color: #fff;
   cursor: pointer;
   font-size: 14px;
@@ -472,4 +472,104 @@
 }
 .header-right{
   gap:10px;
+}
+/* API 密钥设置面板样式 */
+.api-key-settings {
+  position: relative;
+  display: inline-block;
+}
+
+.settings-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--vscode-quickInput-background);
+  border: 1px solid var(--vscode-quickInput-border);
+  border-radius: 6px;
+  padding: 16px;
+  box-shadow: 0 4px 16px var(--vscode-widget-shadow);
+  z-index: 1000;
+  min-width: 300px;
+  margin-top: 4px;
+}
+
+.settings-panel h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.input-group {
+  margin-bottom: 12px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.input-group input {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  color: var(--vscode-input-foreground);
+  font-size: 13px;
+  font-family: var(--vscode-font-family);
+}
+
+.input-group input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  border-color: var(--vscode-focusBorder);
+}
+
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.settings-actions button {
+  padding: 6px 12px;
+  border: 1px solid var(--vscode-button-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.1s ease;
+}
+
+.settings-actions button:first-child {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.settings-actions button:first-child:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.settings-actions button:last-child {
+  background: transparent;
+  color: var(--vscode-foreground);
+  border-color: var(--vscode-input-border);
+}
+
+.settings-actions button:last-child:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.loading-keys {
+  text-align: center;
+  padding: 8px 16px;
+  background: var(--vscode-inputValidation-infoBackground);
+  color: var(--vscode-inputValidation-infoForeground);
+  border: 1px solid var(--vscode-inputValidation-infoBorder);
+  font-size: 12px;
+  margin: 8px 16px;
+  border-radius: 4px;
 }
